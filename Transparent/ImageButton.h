@@ -23,13 +23,14 @@ public:
 	void SetImage(const UINT normal, const UINT hover, const UINT down, const UINT disabled, const LPCTSTR type);
 
 private:
+	IStream* Load(LPCTSTR name, LPCTSTR type, HINSTANCE hIns);
+
 	UINT m_style;
 	bool m_hover;
 	BOOL m_tracking;
 	bool m_handCursor;
 
-	Graphics* m_memDC;
-	Image* m_images[COUNT];
+	IStream* m_streams[COUNT];
 
 protected:
 	DECLARE_MESSAGE_MAP()

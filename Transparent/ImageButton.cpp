@@ -22,6 +22,10 @@ ImageButton::ImageButton()
 
 ImageButton::~ImageButton()
 {
+	for (int i = 0; i < COUNT; i++)
+	{
+		m_streams[i]->Release();
+	}
 }
 
 BEGIN_MESSAGE_MAP(ImageButton, CButton)
@@ -63,38 +67,35 @@ void ImageButton::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
 	graphics.SetInterpolationMode(InterpolationModeDefault);
 	graphics.SetPixelOffsetMode(PixelOffsetModeNone);
 
-	if (m_memDC)
-	{
-		//m_memDC->DrawImage(memDC, dst);
-	}
-
-	Image* image = nullptr;
+	Bitmap* bitmap = nullptr;
 
 	if (lpDrawItemStruct->itemState & ODS_SELECTED)
 	{
 		// Down
-		image = m_images[State::DOWN];
+		bitmap = Bitmap::FromStream(m_streams[DOWN]);
 	}
 	else if (lpDrawItemStruct->itemState & ODS_DISABLED)
 	{
 		// Disabled
-		image = m_images[State::DISABLED];
+		bitmap = Bitmap::FromStream(m_streams[DISABLED]);
 	}
 	else if (m_hover)
 	{
 		// Hover
-		image = m_images[State::HOVER];
+		bitmap = Bitmap::FromStream(m_streams[HOVER]);
 	}
 	else
 	{
 		// Normal
-		image = m_images[State::NORMAL];
+		bitmap = Bitmap::FromStream(m_streams[NORMAL]);
 	}
 
 	ImageAttributes imageAttributes;
 	imageAttributes.SetColorMatrix(&colorMatrix, ColorMatrixFlagsDefault, ColorAdjustTypeBitmap);
 
-	graphics.DrawImage(image, Rect(dst.left, dst.top, dst.Width(), dst.Height()), 0, 0, image->GetWidth(), image->GetHeight(), UnitPixel, &imageAttributes);
+	graphics.DrawImage(bitmap, Rect(dst.left, dst.top, dst.Width(), dst.Height()), 0, 0, 50, 50, UnitPixel, &imageAttributes);
+
+	delete bitmap;
 }
 
 void ImageButton::OnMouseMove(UINT nFlags, CPoint point)
@@ -189,4 +190,39 @@ void ImageButton::OnEnable(BOOL bEnable)
 
 void ImageButton::SetImage(const UINT normal, const UINT hover, const UINT down, const UINT disabled, const LPCTSTR type)
 {
+	auto hIns = AfxGetInstanceHandle();
+
+	m_streams[NORMAL] = Load(MAKEINTRESOURCE(normal), type, hIns);
+	m_streams[HOVER] = Load(MAKEINTRESOURCE(hover), type, hIns);
+	m_streams[DOWN] = Load(MAKEINTRESOURCE(down), type, hIns);
+	m_streams[DISABLED] = Load(MAKEINTRESOURCE(disabled), type, hIns);
+}
+
+IStream * ImageButton::Load(LPCTSTR name, LPCTSTR type, HINSTANCE hIns)
+{
+	HRSRC hResource = FindResource(hIns, name, type);
+	if (!hResource)
+		return nullptr;
+
+	auto hGlobal = LoadResource(hIns, hResource);
+
+	auto lpVoid = LockResource(hGlobal);
+	if (!lpVoid)
+		return nullptr;
+
+	DWORD imageSize = SizeofResource(hIns, hResource);
+	if (!imageSize)
+		return nullptr;
+
+	IStream* stream = nullptr;
+	if (CreateStreamOnHGlobal(NULL, TRUE, &stream) == S_OK)
+	{
+		DWORD dwWritten = 0;
+		if (stream->Write(lpVoid, imageSize, &dwWritten) == S_OK)
+		{
+			return stream;
+		}
+	}
+
+	return nullptr;
 }
